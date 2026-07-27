@@ -32,6 +32,7 @@ class CacheData(TypedDict):
     resolution: str
     render_type: RenderType
     scroll_control: ScrollMode
+    show_options: bool
 
 
 Resolution = TypedDict('Resolution', {'width': int, 'height': int}) | TypedDict('Resolution', {'format': str})
@@ -76,6 +77,7 @@ class Printer(object):
             fullpage=self.fullpage,
             scroll_control=self.scroll_control,
             resolution=res,
+            show_options=False,
         )
 
     def get_render_arguments(self) -> dict:
@@ -166,4 +168,19 @@ class Printer(object):
                     printer.resolution = {"width": 2560, "height": 1440}
                 elif "1080" in resolution:
                     printer.resolution = {"width": 1080, "height": 1920}
+        return printer
+
+    @staticmethod
+    def from_settings(settings: "CacheData", link: str) -> "Printer":
+        """Build a Printer from cached settings dict instead of parsing UI."""
+        printer = Printer(settings["render_type"], link)
+        printer.fullpage = settings["fullpage"]
+        printer.scroll_control = settings["scroll_control"]
+        printer.split = settings["split"]
+        res = settings["resolution"]
+        if printer.type == RenderType.PDF:
+            printer.resolution = dict(format=res)  # type: ignore
+        else:
+            parts = res.split("x")
+            printer.resolution = {"width": int(parts[0]), "height": int(parts[1])}
         return printer

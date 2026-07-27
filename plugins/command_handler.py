@@ -7,6 +7,7 @@ from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from config import Config
+from helper.keyboard import build_settings_keyboard
 from helper.printer import CacheData, RenderType, ScrollMode
 from webshotbot import WebshotBot
 
@@ -16,7 +17,6 @@ from webshotbot import WebshotBot
 )
 async def checker(client: WebshotBot, message: Message):
     msg = await message.reply_text("working", True)
-    markup = []
     _settings = client.get_settings_cache(message.chat.id)
     if _settings is None:
         _settings = CacheData(
@@ -25,60 +25,12 @@ async def checker(client: WebshotBot, message: Message):
             scroll_control=ScrollMode.OFF,
             resolution="Letter",
             split=False,
+            show_options=False,
         )
-    markup.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text=f"Format - {_settings['render_type'].name.upper()}",
-                    callback_data="format",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=f"Page - {'Full' if _settings['fullpage'] else 'Partial'}",
-                    callback_data="page",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=f"Scroll Site - {_settings['scroll_control'].value.title()}",
-                    callback_data="scroll",
-                )
-            ],
-        ]
-    )
-    _split = _settings["split"]
-    _resolution = _settings["resolution"]
-    if _split or  _resolution != "Letter":
-        markup.extend(
-            [
-                [InlineKeyboardButton(text="hide additional options ˄", callback_data="options")],
-                [
-                    InlineKeyboardButton(text=f"resolution | {_resolution}", callback_data="res"),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text=f"Split - {'Yes' if _split else 'No'}",
-                        callback_data="splits",
-                    )
-                ]
-                if _settings["render_type"] != RenderType.PDF
-                else [],
-            ]
-        )
-    else:
-        markup.append([InlineKeyboardButton(text="show additional options ˅", callback_data="options")])
-    markup.extend(
-        [
-            [InlineKeyboardButton(text="▫️ start render ▫️", callback_data="render")],
-            [InlineKeyboardButton(text="cancel", callback_data="cancel")],
-        ]
-    )
-    await msg.edit(
-        text="Choose the prefered settings",
-        reply_markup=InlineKeyboardMarkup(markup),
-    )
+    # Seed cache so callback handlers can read/write state
+    client.settings_cache[message.chat.id] = _settings
+    reply_markup = build_settings_keyboard(_settings)
+    await msg.edit(text="Choose the prefered settings", reply_markup=reply_markup)
 
 
 @WebshotBot.on_message(filters.command(["start"]))
